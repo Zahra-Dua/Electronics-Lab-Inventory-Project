@@ -1,10 +1,11 @@
+//fast Api
 // lib/services/image_search_service.dart
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 
 class ImageSearchService {
-  // ⚠️ Apna laptop IP yahan daalo
+  // laptop IP address:
   static const String baseUrl = 'http://192.168.18.70:8000';
 
   Future<List<Map<String, dynamic>>> searchByImage(XFile imageFile) async {

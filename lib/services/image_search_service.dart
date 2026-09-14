@@ -5,11 +5,15 @@ import 'package:image_picker/image_picker.dart';
 
 class ImageSearchService {
   static const String baseUrl = 'https://zahradua-lab-inventory-ai.hf.space';
+  static const String hfToken = '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';
 
   Future<List<Map<String, dynamic>>> searchByImage(XFile imageFile) async {
-    // Step 1: Image upload karo Gradio ke upload endpoint pe
+    final headers = {'Authorization': 'Bearer $hfToken'};
+
+    // Step 1: Image upload karo
     final uploadUri = Uri.parse('$baseUrl/gradio_api/upload');
     final uploadRequest = http.MultipartRequest('POST', uploadUri);
+    uploadRequest.headers.addAll(headers); // 👈 naya
 
     final bytes = await imageFile.readAsBytes();
     uploadRequest.files.add(
@@ -23,14 +27,20 @@ class ImageSearchService {
       throw Exception('Image upload failed: $uploadBody');
     }
 
-    final uploadedPaths = jsonDecode(uploadBody) as List;
-    final uploadedPath = uploadedPaths.first as String;
+    final decodedUpload = jsonDecode(uploadBody);
+    if (decodedUpload is! List) {
+      throw Exception('Upload failed: $decodedUpload');
+    }
+    final uploadedPath = decodedUpload.first as String;
 
     // Step 2: Search call trigger karo
     final callUri = Uri.parse('$baseUrl/gradio_api/call/search_component');
     final callResponse = await http.post(
       callUri,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers, // 👈 naya
+      },
       body: jsonEncode({
         'data': [
           {
@@ -47,30 +57,45 @@ class ImageSearchService {
 
     final eventId = jsonDecode(callResponse.body)['event_id'] as String;
 
-    // Step 3: Result stream se padho (Server-Sent Events)
+    // Step 3: Result stream se padho
     final resultUri = Uri.parse(
       '$baseUrl/gradio_api/call/search_component/$eventId',
     );
     final client = http.Client();
     final request = http.Request('GET', resultUri);
+    request.headers.addAll(headers); // 👈 naya
     final streamedResponse = await client.send(request);
-
     final responseBody = await streamedResponse.stream.bytesToString();
     client.close();
 
-    // SSE format: lines starting with "data: "
-    String? resultLine;
+    String? currentEvent;
+    String? completeData;
+    String? errorData;
+
     for (var line in responseBody.split('\n')) {
-      if (line.startsWith('data: ')) {
-        resultLine = line.substring(6);
+      if (line.startsWith('event: ')) {
+        currentEvent = line.substring(7).trim();
+      } else if (line.startsWith('data: ')) {
+        final dataStr = line.substring(6);
+        if (currentEvent == 'complete') {
+          completeData = dataStr;
+        } else if (currentEvent == 'error') {
+          errorData = dataStr;
+        }
       }
     }
 
-    if (resultLine == null) {
-      throw Exception('No result received from search API');
+    if (errorData != null) {
+      throw Exception('Backend error: $errorData');
     }
 
-    final resultData = jsonDecode(resultLine) as List;
+    if (completeData == null) {
+      throw Exception(
+        'No result received from search API. Raw response: $responseBody',
+      );
+    }
+
+    final resultData = jsonDecode(completeData) as List;
     final matchesJsonString = resultData.first as String;
     final matchesData = jsonDecode(matchesJsonString);
 

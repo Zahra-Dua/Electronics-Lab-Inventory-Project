@@ -4,6 +4,7 @@ import 'package:internshiptask/models/notification_model.dart';
 import 'package:internshiptask/models/transaction_model.dart';
 import 'package:internshiptask/services/notification_service.dart';
 import 'package:internshiptask/services/transaction_service.dart';
+import 'package:internshiptask/widgets/notification_bell.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/component_model.dart';
@@ -106,57 +107,7 @@ class DashboardHomeScreen extends StatelessWidget {
                           ),
                         ),
 
-                        // Row ke children mein, logout IconButton se pehle:
-                        StreamBuilder<List<NotificationModel>>(
-                          stream: NotificationService().getRecentNotifications(
-                            limit: 10,
-                          ),
-                          builder: (context, snapshot) {
-                            final count = snapshot.data?.length ?? 0;
-                            return Stack(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.notifications_outlined,
-                                    color: Colors.grey,
-                                  ),
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const NotificationsScreen(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                if (count > 0)
-                                  Positioned(
-                                    right: 6,
-                                    top: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      constraints: const BoxConstraints(
-                                        minWidth: 16,
-                                        minHeight: 16,
-                                      ),
-                                      child: Text(
-                                        '$count',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
+                        const NotificationBell(),
                         IconButton(
                           icon: const Icon(Icons.logout, color: Colors.grey),
                           onPressed: () =>

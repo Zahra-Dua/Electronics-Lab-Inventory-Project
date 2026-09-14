@@ -104,4 +104,26 @@ class UserService {
       }
     }
   }
+
+  // Saare users check karo aur missing employeeIndex entries banao
+  Future<int> rebuildEmployeeIndex() async {
+    final usersSnapshot = await _users.get();
+    int fixed = 0;
+
+    for (var doc in usersSnapshot.docs) {
+      final data = doc.data();
+      final employeeId = data['employeeId'] as String?;
+      final email = data['email'] as String?;
+
+      if (employeeId == null || email == null || employeeId.isEmpty) continue;
+
+      final indexDoc = await _employeeIndex.doc(employeeId).get();
+      if (!indexDoc.exists) {
+        await _employeeIndex.doc(employeeId).set({'email': email});
+        fixed++;
+      }
+    }
+
+    return fixed;
+  }
 }

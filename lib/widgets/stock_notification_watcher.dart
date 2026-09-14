@@ -33,7 +33,6 @@ class _StockNotificationWatcherState extends State<StockNotificationWatcher> {
   Set<String> _lowStockIds = {};
   Set<String> _outOfStockIds = {};
 
-  // 👇 NAYA — jo components pehle se "known" hain (baseline mil chuki hai)
   Set<String> _knownComponentIds = {};
 
   @override
@@ -84,8 +83,6 @@ class _StockNotificationWatcherState extends State<StockNotificationWatcher> {
       }
     }
 
-    // 👇 Sirf un components ke liye notify karo jo pehle se "known" the
-    // (naye components ko is check mein sirf baseline mil jayegi, notify nahi honge)
     final newlyOut = newOut
         .difference(_outOfStockIds)
         .intersection(_knownComponentIds);
@@ -136,7 +133,6 @@ class _StockNotificationWatcherState extends State<StockNotificationWatcher> {
     _lowStockIds = newLow;
     _outOfStockIds = newOut;
 
-    // 👇 Ab sab current components ko "known" mark kar do (agle check ke liye baseline)
     _knownComponentIds = _components!.map((c) => c.id).toSet();
   }
 

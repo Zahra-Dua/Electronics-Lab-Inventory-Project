@@ -1,6 +1,7 @@
 // lib/screens/admin/data_cleanup_screen.dart
 import 'package:flutter/material.dart';
 import '../../services/inventory_service.dart';
+import '../../services/user_service.dart';
 
 class DataCleanupScreen extends StatefulWidget {
   const DataCleanupScreen({super.key});
@@ -29,6 +30,26 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
             'Cleanup complete!\n$inventoryDeleted orphaned inventory record(s) removed.\n\n'
             'Note: Transaction history is kept permanently for audit purposes, '
             'even for deleted components.';
+      });
+    } catch (e) {
+      setState(() => _resultMessage = 'Error: $e');
+    } finally {
+      if (mounted) setState(() => _isRunning = false);
+    }
+  }
+
+  // State class mein naya method:
+  Future<void> _rebuildIndex() async {
+    setState(() {
+      _isRunning = true;
+      _resultMessage = null;
+    });
+
+    try {
+      final fixed = await UserService().rebuildEmployeeIndex();
+      setState(() {
+        _resultMessage =
+            'Employee ID index rebuilt!\n$fixed missing entr${fixed == 1 ? 'y' : 'ies'} created.';
       });
     } catch (e) {
       setState(() => _resultMessage = 'Error: $e');
@@ -114,6 +135,15 @@ class _DataCleanupScreenState extends State<DataCleanupScreen> {
             ),
             const SizedBox(height: 16),
 
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.badge_outlined),
+                label: const Text('Rebuild Employee ID Index'),
+                onPressed: _isRunning ? null : _rebuildIndex,
+              ),
+            ),
             if (_resultMessage != null)
               Container(
                 width: double.infinity,
