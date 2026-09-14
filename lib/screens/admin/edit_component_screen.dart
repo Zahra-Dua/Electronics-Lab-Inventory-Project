@@ -1,9 +1,7 @@
 // lib/screens/admin/edit_component_screen.dart
 import 'package:flutter/material.dart';
-import 'package:internshiptask/models/audit_log_model.dart';
-import 'package:internshiptask/providers/auth_provider.dart';
-import 'package:internshiptask/services/audit_log_service.dart';
-import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:internshiptask/services/storage_service.dart';
 import '../../constants/component_constants.dart';
 import '../../models/component_model.dart';
 import '../../services/component_service.dart';
@@ -30,11 +28,16 @@ class _EditComponentScreenState extends State<EditComponentScreen> {
 
   final _componentService = ComponentService();
   static const Color primaryColor = Color(0xFF6C63FF);
+  late List<String> _existingImageUrls;
+  final List<XFile> _newImages = [];
+  final _storageService = StorageService();
+  bool _isUploadingImages = false;
 
   @override
   void initState() {
     super.initState();
     final c = widget.component;
+    _existingImageUrls = List.from(widget.component.imageUrls);
     _nameController = TextEditingController(text: c.name);
     _manufacturerController = TextEditingController(text: c.manufacturer);
     _partNumberController = TextEditingController(text: c.partNumber);
@@ -43,6 +46,22 @@ class _EditComponentScreenState extends State<EditComponentScreen> {
     _selectedType = componentTypes.contains(c.type)
         ? c.type
         : componentTypes.first;
+  }
+
+  Future<void> _pickNewImages() async {
+    final picker = ImagePicker();
+    final images = await picker.pickMultiImage(imageQuality: 70);
+    if (images.isNotEmpty) {
+      setState(() => _newImages.addAll(images));
+    }
+  }
+
+  void _removeExistingImage(int index) {
+    setState(() => _existingImageUrls.removeAt(index));
+  }
+
+  void _removeNewImage(int index) {
+    setState(() => _newImages.removeAt(index));
   }
 
   Future<void> _submit() async {
@@ -54,6 +73,27 @@ class _EditComponentScreenState extends State<EditComponentScreen> {
     });
 
     try {
+      // Naye images upload karo
+      List<String> uploadedUrls = [];
+      if (_newImages.isNotEmpty) {
+        setState(() => _isUploadingImages = true);
+        uploadedUrls = await _storageService.uploadImages(
+          files: _newImages,
+          componentCode: widget.component.componentCode,
+        );
+        setState(() => _isUploadingImages = false);
+      }
+
+      // Jo images remove ki gayi hain unhe Supabase se bhi delete karo
+      final removedUrls = widget.component.imageUrls
+          .where((url) => !_existingImageUrls.contains(url))
+          .toList();
+      for (var url in removedUrls) {
+        await _storageService.deleteImage(url);
+      }
+
+      final finalImageUrls = [..._existingImageUrls, ...uploadedUrls];
+
       await _componentService.updateComponent(widget.component.id, {
         'name': _nameController.text.trim(),
         'type': _selectedType,
@@ -61,28 +101,8 @@ class _EditComponentScreenState extends State<EditComponentScreen> {
         'partNumber': _partNumberController.text.trim(),
         'description': _descriptionController.text.trim(),
         'minimumStock': int.tryParse(_minStockController.text.trim()) ?? 0,
+        'imageUrls': finalImageUrls,
       });
-      // _submit() method ke andar, updateComponent call ke baad ye add karo:
-      final currentUser = context.read<AuthProvider>().userModel;
-      await AuditLogService().logAction(
-        AuditLogModel(
-          id: '',
-          userId: currentUser?.id ?? '',
-          userName: currentUser?.name ?? 'Unknown',
-          action: AuditAction.update,
-          entityType: 'component',
-          entityId: widget.component.id,
-          entityLabel: widget.component.name,
-          oldValues: {
-            'name': widget.component.name,
-            'minimumStock': widget.component.minimumStock,
-          },
-          newValues: {
-            'name': _nameController.text.trim(),
-            'minimumStock': int.tryParse(_minStockController.text.trim()) ?? 0,
-          },
-        ),
-      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -264,7 +284,115 @@ class _EditComponentScreenState extends State<EditComponentScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            const SizedBox(height: 20),
+            const Text(
+              'Component Images',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
 
+            // Existing images
+            if (_existingImageUrls.isNotEmpty)
+              SizedBox(
+                height: 90,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _existingImageUrls.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              _existingImageUrls[index],
+                              width: 90,
+                              height: 90,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: () => _removeExistingImage(index),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            // Newly picked images
+            if (_newImages.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 90,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _newImages.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              _newImages[index].path,
+                              width: 90,
+                              height: 90,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: () => _removeNewImage(index),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+              label: const Text('Add More Images'),
+              onPressed: _pickNewImages,
+            ),
             if (_errorMessage != null)
               Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 12),

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:internshiptask/models/transaction_model.dart';
 import 'package:internshiptask/screens/admin/edit_component_screen.dart';
+import 'package:internshiptask/screens/component_transaction_history_screen.dart';
 import 'package:internshiptask/services/transaction_service.dart';
 import '../../models/component_model.dart';
 import '../../models/inventory_model.dart';
@@ -570,8 +571,17 @@ class ComponentDetailScreen extends StatelessWidget {
                           children: [
                             _sectionTitle('RECENT TRANSACTIONS'),
                             TextButton(
-                              onPressed: () =>
-                                  _comingSoon(context, 'Transaction history'),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ComponentTransactionHistoryScreen(
+                                          componentId: component.id,
+                                          componentName: component.name,
+                                        ),
+                                  ),
+                                );
+                              },
                               child: const Text(
                                 'View History',
                                 style: TextStyle(fontSize: 12),

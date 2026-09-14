@@ -4,10 +4,15 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/component_model.dart';
 import '../../models/inventory_model.dart';
+import '../../models/transaction_model.dart';
+import '../../models/notification_model.dart';
 import '../../services/component_service.dart';
 import '../../services/inventory_service.dart';
+import '../../services/transaction_service.dart';
+import '../../services/notification_service.dart';
 import 'lab_staff_search_screen.dart';
-import '../image_search_screen.dart';
+import 'lab_staff_component_detail_screen.dart';
+import '../notifications_screen.dart';
 
 class LabStaffHomeScreen extends StatefulWidget {
   const LabStaffHomeScreen({super.key});
@@ -19,12 +24,6 @@ class LabStaffHomeScreen extends StatefulWidget {
 class _LabStaffHomeScreenState extends State<LabStaffHomeScreen> {
   static const Color primaryColor = Color(0xFF6C63FF);
   final _searchController = TextEditingController();
-
-  void _comingSoon(String feature) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$feature — coming soon')));
-  }
 
   void _goToSearch([String query = '']) {
     Navigator.of(context).push(
@@ -39,6 +38,7 @@ class _LabStaffHomeScreenState extends State<LabStaffHomeScreen> {
     final user = context.watch<AuthProvider>().userModel;
     final componentService = ComponentService();
     final inventoryService = InventoryService();
+    final transactionService = TransactionService();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FA),
@@ -69,6 +69,53 @@ class _LabStaffHomeScreenState extends State<LabStaffHomeScreen> {
                       ),
                     ],
                   ),
+                ),
+                // 👇 Bell icon — sirf ye ek jagah notifications dikhata hai
+                StreamBuilder<List<NotificationModel>>(
+                  stream: NotificationService().getRecentNotifications(
+                    limit: 10,
+                  ),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data?.length ?? 0;
+                    return Stack(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_outlined),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        if (count > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '$count',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 CircleAvatar(
                   radius: 22,
@@ -106,82 +153,9 @@ class _LabStaffHomeScreenState extends State<LabStaffHomeScreen> {
               ),
               onSubmitted: (val) => _goToSearch(val),
             ),
-            const SizedBox(height: 12),
-
-            InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ImageSearchScreen()),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_outlined,
-                        color: primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Search by Image',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            'Scan a component photo',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _quickTile(
-                    icon: Icons.qr_code_2,
-                    color: Colors.orange,
-                    title: 'Scan QR',
-                    subtitle: 'Component / Bin QR',
-                    onTap: () => _comingSoon('QR Scanning'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _quickTile(
-                    icon: Icons.history,
-                    color: Colors.green,
-                    title: 'Transactions',
-                    subtitle: 'Issued / returned',
-                    onTap: () => _comingSoon('Transaction history'),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 24),
 
+            // 👇 Recently Used — ab real data, sirf current user ki
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -193,25 +167,110 @@ class _LabStaffHomeScreenState extends State<LabStaffHomeScreen> {
                     letterSpacing: 0.5,
                   ),
                 ),
-                TextButton(
-                  onPressed: () => _comingSoon('Recently used tracking'),
-                  child: const Text('See All', style: TextStyle(fontSize: 12)),
-                ),
               ],
             ),
             const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+
+            if (user == null)
+              const SizedBox.shrink()
+            else
+              StreamBuilder<List<TransactionModel>>(
+                stream: transactionService.getTransactionsForUser(
+                  user.id,
+                  limit: 20,
+                ),
+                builder: (context, snapshot) {
+                  final allTxns = snapshot.data ?? [];
+                  final issuedTxns = allTxns
+                      .where((t) => t.type == TransactionType.issue)
+                      .take(3)
+                      .toList();
+
+                  if (issuedTxns.isEmpty) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Text(
+                        'No components used yet.',
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    );
+                  }
+
+                  return SizedBox(
+                    height: 90,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: issuedTxns.length,
+                      itemBuilder: (context, index) {
+                        final txn = issuedTxns[index];
+                        return FutureBuilder<ComponentModel?>(
+                          future: componentService.getComponent(
+                            txn.componentId,
+                          ),
+                          builder: (context, compSnap) {
+                            final comp = compSnap.data;
+                            return GestureDetector(
+                              onTap: comp == null
+                                  ? null
+                                  : () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              LabStaffComponentDetailScreen(
+                                                component: comp,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                              child: Container(
+                                width: 130,
+                                margin: const EdgeInsets.only(right: 10),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.memory,
+                                      color: primaryColor,
+                                      size: 22,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      txn.componentName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '${txn.quantity} issued',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
-              child: const Text(
-                'No recently used components yet.',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-            ),
             const SizedBox(height: 24),
 
             const Text(
@@ -313,48 +372,6 @@ class _LabStaffHomeScreenState extends State<LabStaffHomeScreen> {
                   },
                 );
               },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _quickTile({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ],
         ),

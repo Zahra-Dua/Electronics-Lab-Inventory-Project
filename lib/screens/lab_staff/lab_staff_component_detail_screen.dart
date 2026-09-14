@@ -1,5 +1,6 @@
 // lib/screens/lab_staff/lab_staff_component_detail_screen.dart
 import 'package:flutter/material.dart';
+import 'package:internshiptask/screens/component_transaction_history_screen.dart';
 import '../../models/component_model.dart';
 import '../../models/inventory_model.dart';
 import '../../models/location_model.dart';
@@ -231,13 +232,34 @@ class LabStaffComponentDetailScreen extends StatelessWidget {
 
               // 👇 YAHAN ADD KARNA HAI — "Mark Damaged" button ke bilkul neeche
               const SizedBox(height: 20),
-              const Text(
-                'RECENT TRANSACTIONS',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                  letterSpacing: 0.5,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'RECENT TRANSACTIONS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ComponentTransactionHistoryScreen(
+                            componentId: component.id,
+                            componentName: component.name,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'View History',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               StreamBuilder<List<TransactionModel>>(

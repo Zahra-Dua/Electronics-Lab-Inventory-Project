@@ -32,7 +32,9 @@ class _StockNotificationWatcherState extends State<StockNotificationWatcher> {
 
   Set<String> _lowStockIds = {};
   Set<String> _outOfStockIds = {};
-  bool _isFirstCheck = true;
+
+  // 👇 NAYA — jo components pehle se "known" hain (baseline mil chuki hai)
+  Set<String> _knownComponentIds = {};
 
   @override
   void initState() {
@@ -82,56 +84,60 @@ class _StockNotificationWatcherState extends State<StockNotificationWatcher> {
       }
     }
 
-    // Pehli dafa app load hote hi notification spam na ho, isliye first check skip karo
-    if (!_isFirstCheck) {
-      final newlyOut = newOut.difference(_outOfStockIds);
-      for (var id in newlyOut) {
-        final comp = _findComponent(id);
-        if (comp != null) {
-          _notificationService.show(
-            id: comp.id.hashCode,
-            title: '🔴 Out of Stock',
+    // 👇 Sirf un components ke liye notify karo jo pehle se "known" the
+    // (naye components ko is check mein sirf baseline mil jayegi, notify nahi honge)
+    final newlyOut = newOut
+        .difference(_outOfStockIds)
+        .intersection(_knownComponentIds);
+    for (var id in newlyOut) {
+      final comp = _findComponent(id);
+      if (comp != null) {
+        _notificationService.show(
+          id: comp.id.hashCode,
+          title: '🔴 Out of Stock',
+          body: '${comp.name} (${comp.componentCode}) is now out of stock.',
+        );
+        _notificationServiceFirestore.createNotification(
+          NotificationModel(
+            id: '',
+            title: 'Out of Stock',
             body: '${comp.name} (${comp.componentCode}) is now out of stock.',
-          );
-          // 👇 Firestore mein bhi save karo
-          _notificationServiceFirestore.createNotification(
-            NotificationModel(
-              id: '',
-              title: 'Out of Stock',
-              body: '${comp.name} (${comp.componentCode}) is now out of stock.',
-              type: 'out_of_stock',
-              componentId: comp.id,
-            ),
-          );
-        }
+            type: 'out_of_stock',
+            componentId: comp.id,
+          ),
+        );
       }
+    }
 
-      final newlyLow = newLow.difference(_lowStockIds).difference(newOut);
-      for (var id in newlyLow) {
-        final comp = _findComponent(id);
-        if (comp != null) {
-          _notificationService.show(
-            id: comp.id.hashCode,
-            title: '⚠️ Low Stock Alert',
+    final newlyLow = newLow
+        .difference(_lowStockIds)
+        .difference(newOut)
+        .intersection(_knownComponentIds);
+    for (var id in newlyLow) {
+      final comp = _findComponent(id);
+      if (comp != null) {
+        _notificationService.show(
+          id: comp.id.hashCode,
+          title: '⚠️ Low Stock Alert',
+          body: '${comp.name} (${comp.componentCode}) is running low.',
+        );
+        _notificationServiceFirestore.createNotification(
+          NotificationModel(
+            id: '',
+            title: 'Low Stock Alert',
             body: '${comp.name} (${comp.componentCode}) is running low.',
-          );
-          // 👇 Firestore mein bhi save karo
-          _notificationServiceFirestore.createNotification(
-            NotificationModel(
-              id: '',
-              title: 'Low Stock Alert',
-              body: '${comp.name} (${comp.componentCode}) is running low.',
-              type: 'low_stock',
-              componentId: comp.id,
-            ),
-          );
-        }
+            type: 'low_stock',
+            componentId: comp.id,
+          ),
+        );
       }
     }
 
     _lowStockIds = newLow;
     _outOfStockIds = newOut;
-    _isFirstCheck = false;
+
+    // 👇 Ab sab current components ko "known" mark kar do (agle check ke liye baseline)
+    _knownComponentIds = _components!.map((c) => c.id).toSet();
   }
 
   @override

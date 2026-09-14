@@ -43,6 +43,17 @@ class _AddComponentScreenState extends State<AddComponentScreen> {
   final _inventoryService = InventoryService();
   static const Color primaryColor = Color(0xFF6C63FF);
 
+  Future<void> _captureImage() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+    );
+    if (image != null) {
+      setState(() => _pickedImages.add(image));
+    }
+  }
+
   Future<void> _pickImages() async {
     final picker = ImagePicker();
     final images = await picker.pickMultiImage(imageQuality: 70);
@@ -429,36 +440,84 @@ class _AddComponentScreenState extends State<AddComponentScreen> {
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                InkWell(
-                  onTap: _pickImages,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: _pickImages,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.photo_library_outlined,
+                                color: primaryColor,
+                                size: 26,
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Gallery',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                'Choose multiple',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Column(
-                      children: [
-                        Icon(
-                          Icons.add_photo_alternate_outlined,
-                          color: primaryColor,
-                          size: 28,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: InkWell(
+                        onTap: _captureImage,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.camera_alt_outlined,
+                                color: primaryColor,
+                                size: 26,
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Camera',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                'Take a photo',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Tap to add images',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'You can select multiple images',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
 
                 if (_pickedImages.isNotEmpty) ...[
